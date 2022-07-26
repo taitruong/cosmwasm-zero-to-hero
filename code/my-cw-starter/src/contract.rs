@@ -124,7 +124,7 @@ fn execute_vote(
                 .iter()
                 .position(|option| option.0 == vote);
             if position.is_none() {
-                return Err(ContractError::Unauthorized {});
+                return Err(ContractError::PollNotFound {});
             }
             let position = position.unwrap();
             poll.options[position].1 += 1;
@@ -133,7 +133,7 @@ fn execute_vote(
             POLLS.save(deps.storage, poll_id, &poll)?;
             Ok(Response::new())
         },
-        None => Err(ContractError::Unauthorized {}), // The poll does not exist so we just error
+        None => Err(ContractError::PollNotFound {}), // The poll does not exist so we just error
     }
 }
 

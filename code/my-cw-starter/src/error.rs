@@ -10,5 +10,8 @@ pub enum ContractError {
     Unauthorized{},
 
     #[error("Too many poll options")]
-    TooManyOptions {},
+    TooManyOptions{},
+
+    #[error("Poo not found")]
+    PollNotFound{},
 }
