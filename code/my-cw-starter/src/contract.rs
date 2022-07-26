@@ -131,7 +131,10 @@ fn execute_vote(
 
             // Save the update
             POLLS.save(deps.storage, poll_id, &poll)?;
-            Ok(Response::new())
+            Ok(Response::new()
+                .add_attribute("action", "vote")
+                .add_attribute("vote", vote)
+            )
         },
         None => Err(ContractError::PollNotFound {}), // The poll does not exist so we just error
     }
