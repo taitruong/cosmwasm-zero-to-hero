@@ -172,13 +172,13 @@ fn query_vote(deps: Deps, _env: Env, address: String, poll_id: String) -> StdRes
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::attr;
+    use cosmwasm_std::{attr, from_binary};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 
     use crate::ContractError;
-    use crate::msg::{InstantiateMsg, ExecuteMsg};
+    use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, AllPollsResponse, PollResponse, VoteResponse};
 
-    use super::{instantiate, execute};
+    use super::{instantiate, execute, query};
 
     pub const ADDR1: &str = "addr1";
     pub const ADDR2: &str = "addr2";
@@ -367,6 +367,130 @@ mod tests {
             ContractError::PollNotFound {  } => {},
             _ => panic!(),
         }
+
+    }
+
+    #[test]
+    fn test_query_all_polls() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // instantiate contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a poll
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id_1".to_string(),
+            question: "What's your favourite Cosmos coin?".to_string(),
+            options: vec![
+                "Cosmos Hub".to_string(),
+                "Juno".to_string(),
+                "Osmosis".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a second poll
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id_2".to_string(),
+            question: "What's your colour?".to_string(),
+            options: vec!["Red".to_string(), "Green".to_string(), "Blue".to_string()],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+        let msg = QueryMsg::AllPolls {};
+        let bin = query(deps.as_ref(), env, msg).unwrap();
+        let res: AllPollsResponse = from_binary(&bin).unwrap();
+
+        assert_eq!(res.polls.len(), 2);
+    }
+
+    #[test]
+    fn test_query_poll() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // instantiate contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a poll
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id_1".to_string(),
+            question: "What's your favourite Cosmos coin?".to_string(),
+            options: vec![
+                "Cosmos Hub".to_string(),
+                "Juno".to_string(),
+                "Osmosis".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        let msg = QueryMsg::Poll { poll_id: "some_id_1".to_string() };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: PollResponse = from_binary(&bin).unwrap();
+
+        assert!(res.poll.is_some());
+
+        // Query for the poll that does not exists
+        let msg = QueryMsg::Poll {
+            poll_id: "some_id_not_exist".to_string(),
+        };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: PollResponse = from_binary(&bin).unwrap();
+
+        assert!(res.poll.is_none());
+
+    }
+
+    #[test]
+    fn test_query_vote() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a poll
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id_1".to_string(),
+            question: "What's your favourite Cosmos coin?".to_string(),
+            options: vec![
+                "Cosmos Hub".to_string(),
+                "Juno".to_string(),
+                "Osmosis".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a vote
+        let msg = ExecuteMsg::Vote {
+            poll_id: "some_id_1".to_string(),
+            vote: "Juno".to_string(),
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // query a vote that exists
+        let msg = QueryMsg::Vote {
+            poll_id: "some_id_1".to_string(),
+            address: ADDR1.to_string()
+        };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: VoteResponse = from_binary(&bin).unwrap();
+
+        assert!(res.vote.is_some());
+
+        // Query for a vote that does not exists
+        let msg = QueryMsg::Vote {
+            poll_id: "some_id_2".to_string(),
+            address: ADDR2.to_string(),
+        };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: VoteResponse = from_binary(&bin).unwrap();
+
+        assert!(res.vote.is_none());
 
     }
 
