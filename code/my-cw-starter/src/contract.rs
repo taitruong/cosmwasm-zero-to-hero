@@ -150,9 +150,10 @@ mod tests {
     use cosmwasm_std::attr;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 
-    use crate::msg::InstantiateMsg;
+    use crate::ContractError;
+    use crate::msg::{InstantiateMsg, ExecuteMsg};
 
-    use super::instantiate;
+    use super::{instantiate, execute};
 
     pub const ADDR1: &str = "addr1";
     pub const ADDR2: &str = "addr2";
@@ -177,7 +178,7 @@ mod tests {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let info = mock_info(ADDR1, &vec![]);
-
+        // Instantiate the contract
         let msg = InstantiateMsg{admin: Some(ADDR2.to_string())};
         let res = instantiate(deps.as_mut(), env, info, msg).unwrap();
 
@@ -186,4 +187,162 @@ mod tests {
             vec![attr("action", "instantiate"), attr("admin", ADDR2)]
         )
     }
+
+    #[test]
+    fn test_execute_create_poll_valid() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // Instantiate the contract
+        let msg = InstantiateMsg{admin: Some(ADDR2.to_string())};
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // new execute msg
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id".to_string(),
+            question: "What's your favorite Cosmos chain?".to_string(),
+            options: vec![
+                "Cosmos Hub".to_string(),
+                "Juno".to_string(),
+                "Osmosis".to_string(),
+            ]
+        };
+
+        // unwrap to assert success
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        assert_eq!(
+            res.attributes,
+            vec![attr("action", "create_poll"), attr("question", "What's your favorite Cosmos chain?")]
+        )
+    }
+
+    #[test]
+    fn test_execute_create_poll_invalid() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id".to_string(),
+            question: "What's your favourite number?".to_string(),
+            options: vec![
+                "1".to_string(),
+                "2".to_string(),
+                "3".to_string(),
+                "4".to_string(),
+                "5".to_string(),
+                "6".to_string(),
+                "7".to_string(),
+                "8".to_string(),
+                "9".to_string(),
+                "10".to_string(),
+                "11".to_string(),
+            ],
+        };
+
+        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+        match err {
+            ContractError::TooManyOptions {  } => {},
+            _ => panic!(),
+
+        }
+    }
+
+    #[test]
+    fn test_execute_vote_valid() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create the poll
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id".to_string(),
+            question: "What's your favourite Cosmos coin?".to_string(),
+            options: vec![
+                "Cosmos Hub".to_string(),
+                "Juno".to_string(),
+                "Osmosis".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        let msg = ExecuteMsg::Vote {
+            poll_id: "some_id".to_string(),
+            vote: "Juno".to_string(),
+        };
+        let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        assert_eq!(
+            res.attributes,
+            vec![attr("action", "vote"), attr("vote", "Juno")]
+        );
+
+        // Change the vote
+        let msg = ExecuteMsg::Vote {
+            poll_id: "some_id".to_string(),
+            vote: "Osmosis".to_string(),
+        };
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+        assert_eq!(
+            res.attributes,
+            vec![attr("action", "vote"), attr("vote", "Osmosis")]
+        );
+    }
+
+    #[test]
+    fn test_execute_vote_invalid() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create the vote, some_id poll is not created yet.
+        let msg = ExecuteMsg::Vote {
+            poll_id: "some_id".to_string(),
+            vote: "Juno".to_string(),
+        };
+        // Unwrap to assert error
+        let err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+
+        match err {
+            ContractError::PollNotFound {  } => {},
+            _ => panic!(),
+        }
+
+        // Create the poll
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id".to_string(),
+            question: "What's your favourite Cosmos coin?".to_string(),
+            options: vec![
+                "Cosmos Hub".to_string(),
+                "Juno".to_string(),
+                "Osmosis".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Vote on a now existing poll but the option "DVPN" does not exist
+        let msg = ExecuteMsg::Vote {
+            poll_id: "some_id".to_string(),
+            vote: "DVPN".to_string(),
+        };
+
+        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+
+        match err {
+            ContractError::PollNotFound {  } => {},
+            _ => panic!(),
+        }
+
+    }
+
 }
