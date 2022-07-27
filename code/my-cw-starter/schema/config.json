@@ -3,15 +3,10 @@
   "title": "Config",
   "type": "object",
   "required": [
-    "count",
-    "owner"
+    "admin"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
-    },
-    "owner": {
+    "admin": {
       "$ref": "#/definitions/Addr"
     }
   },
