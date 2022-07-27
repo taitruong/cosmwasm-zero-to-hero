@@ -7,11 +7,11 @@ pub enum ContractError {
     Std(#[from] StdError),
 
     #[error("Unauthorized")]
-    Unauthorized{},
+    Unauthorized {},
 
     #[error("Too many poll options")]
-    TooManyOptions{},
+    TooManyOptions {},
 
     #[error("Poo not found")]
-    PollNotFound{},
+    PollNotFound {},
 }

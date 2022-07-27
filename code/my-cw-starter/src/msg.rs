@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::state::{Poll, Ballot};
+use crate::state::{Ballot, Poll};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -20,20 +20,15 @@ pub enum ExecuteMsg {
     Vote {
         poll_id: String,
         vote: String,
-    }
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     AllPolls {},
-    Poll {
-        poll_id: String,
-    },
-    Vote {
-        poll_id: String,
-        address: String,
-    },
+    Poll { poll_id: String },
+    Vote { poll_id: String, address: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

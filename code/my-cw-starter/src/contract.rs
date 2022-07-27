@@ -1,12 +1,16 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Order, to_binary};
+use cosmwasm_std::{
+    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+};
 use cw2::set_contract_version;
 // use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, AllPollsResponse, PollResponse, VoteResponse};
-use crate::state::{Config, CONFIG, Poll, POLLS, Ballot, BALLOTS};
+use crate::msg::{
+    AllPollsResponse, ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg, VoteResponse,
+};
+use crate::state::{Ballot, Config, Poll, BALLOTS, CONFIG, POLLS};
 
 const CONTRACT_NAME: &str = "crates.io:my-cw-starter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -27,8 +31,7 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
         .add_attribute("action", "instantiate")
-        .add_attribute("admin", validated_admin.to_string())
-    )
+        .add_attribute("admin", validated_admin.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -42,12 +45,9 @@ pub fn execute(
         ExecuteMsg::CreatePoll {
             poll_id,
             question,
-            options
+            options,
         } => execute_create_poll(deps, env, info, poll_id, question, options),
-        ExecuteMsg::Vote {
-            poll_id,
-            vote
-        } => execute_vote(deps, env, info, poll_id, vote),
+        ExecuteMsg::Vote { poll_id, vote } => execute_vote(deps, env, info, poll_id, vote),
     }
 }
 
@@ -60,7 +60,7 @@ pub fn execute_create_poll(
     options: Vec<String>,
 ) -> Result<Response, ContractError> {
     if options.len() > 10 {
-        return Err(ContractError::TooManyOptions {  });
+        return Err(ContractError::TooManyOptions {});
     }
 
     let mut opts: Vec<(String, u64)> = vec![];
@@ -78,8 +78,7 @@ pub fn execute_create_poll(
 
     Ok(Response::new()
         .add_attribute("action", "create_poll")
-        .add_attribute("question", question)
-    )
+        .add_attribute("question", question))
 }
 
 fn execute_vote(
@@ -91,7 +90,8 @@ fn execute_vote(
 ) -> Result<Response, ContractError> {
     let poll = POLLS.may_load(deps.storage, poll_id.clone())?;
     match poll {
-        Some(mut poll) => { // The poll exists
+        Some(mut poll) => {
+            // The poll exists
             BALLOTS.update(
                 deps.storage,
                 (info.sender, poll_id.clone()),
@@ -108,21 +108,22 @@ fn execute_vote(
                             // Decrement by 1
                             poll.options[position_of_old_vote].1 -= 1;
                             // Update the ballot
-                            Ok(Ballot { option: vote.clone() })
+                            Ok(Ballot {
+                                option: vote.clone(),
+                            })
                         }
                         None => {
                             // Simply add the ballot
-                            Ok(Ballot { option: vote.clone() })
+                            Ok(Ballot {
+                                option: vote.clone(),
+                            })
                         }
                     }
                 },
             )?;
 
             // Find the position of the new vote option and increment it by 1
-            let position = poll
-                .options
-                .iter()
-                .position(|option| option.0 == vote);
+            let position = poll.options.iter().position(|option| option.0 == vote);
             if position.is_none() {
                 return Err(ContractError::PollNotFound {});
             }
@@ -133,9 +134,8 @@ fn execute_vote(
             POLLS.save(deps.storage, poll_id, &poll)?;
             Ok(Response::new()
                 .add_attribute("action", "vote")
-                .add_attribute("vote", vote)
-            )
-        },
+                .add_attribute("vote", vote))
+        }
         None => Err(ContractError::PollNotFound {}), // The poll does not exist so we just error
     }
 }
@@ -143,7 +143,7 @@ fn execute_vote(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::AllPolls {  } => query_all_polls(deps, env),
+        QueryMsg::AllPolls {} => query_all_polls(deps, env),
         QueryMsg::Poll { poll_id } => query_poll(deps, env, poll_id),
         QueryMsg::Vote { poll_id, address } => query_vote(deps, env, address, poll_id),
     }
@@ -155,7 +155,7 @@ fn query_all_polls(deps: Deps, _env: Env) -> StdResult<Binary> {
         .map(|p| Ok(p?.1))
         .collect::<StdResult<Vec<_>>>()?;
 
-    to_binary(&AllPollsResponse{ polls })
+    to_binary(&AllPollsResponse { polls })
 }
 
 fn query_poll(deps: Deps, _env: Env, poll_id: String) -> StdResult<Binary> {
@@ -172,13 +172,15 @@ fn query_vote(deps: Deps, _env: Env, address: String, poll_id: String) -> StdRes
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::{attr, from_binary};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{attr, from_binary};
 
+    use crate::msg::{
+        AllPollsResponse, ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg, VoteResponse,
+    };
     use crate::ContractError;
-    use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, AllPollsResponse, PollResponse, VoteResponse};
 
-    use super::{instantiate, execute, query};
+    use super::{execute, instantiate, query};
 
     pub const ADDR1: &str = "addr1";
     pub const ADDR2: &str = "addr2";
@@ -189,7 +191,7 @@ mod tests {
         let env = mock_env();
         let info = mock_info(ADDR1, &[]);
 
-        let msg = InstantiateMsg{admin: None};
+        let msg = InstantiateMsg { admin: None };
         let res = instantiate(deps.as_mut(), env, info, msg).unwrap();
 
         assert_eq!(
@@ -204,7 +206,9 @@ mod tests {
         let env = mock_env();
         let info = mock_info(ADDR1, &[]);
         // Instantiate the contract
-        let msg = InstantiateMsg{admin: Some(ADDR2.to_string())};
+        let msg = InstantiateMsg {
+            admin: Some(ADDR2.to_string()),
+        };
         let res = instantiate(deps.as_mut(), env, info, msg).unwrap();
 
         assert_eq!(
@@ -219,7 +223,9 @@ mod tests {
         let env = mock_env();
         let info = mock_info(ADDR1, &[]);
         // Instantiate the contract
-        let msg = InstantiateMsg{admin: Some(ADDR2.to_string())};
+        let msg = InstantiateMsg {
+            admin: Some(ADDR2.to_string()),
+        };
         let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
         // new execute msg
@@ -230,14 +236,17 @@ mod tests {
                 "Cosmos Hub".to_string(),
                 "Juno".to_string(),
                 "Osmosis".to_string(),
-            ]
+            ],
         };
 
         // unwrap to assert success
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(
             res.attributes,
-            vec![attr("action", "create_poll"), attr("question", "What's your favorite Cosmos chain?")]
+            vec![
+                attr("action", "create_poll"),
+                attr("question", "What's your favorite Cosmos chain?")
+            ]
         )
     }
 
@@ -270,9 +279,8 @@ mod tests {
 
         let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
         match err {
-            ContractError::TooManyOptions {  } => {},
+            ContractError::TooManyOptions {} => {}
             _ => panic!(),
-
         }
     }
 
@@ -339,7 +347,7 @@ mod tests {
         let err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
 
         match err {
-            ContractError::PollNotFound {  } => {},
+            ContractError::PollNotFound {} => {}
             _ => panic!(),
         }
 
@@ -364,10 +372,9 @@ mod tests {
         let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
 
         match err {
-            ContractError::PollNotFound {  } => {},
+            ContractError::PollNotFound {} => {}
             _ => panic!(),
         }
-
     }
 
     #[test]
@@ -427,7 +434,9 @@ mod tests {
         };
         let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
-        let msg = QueryMsg::Poll { poll_id: "some_id_1".to_string() };
+        let msg = QueryMsg::Poll {
+            poll_id: "some_id_1".to_string(),
+        };
         let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
         let res: PollResponse = from_binary(&bin).unwrap();
 
@@ -441,7 +450,6 @@ mod tests {
         let res: PollResponse = from_binary(&bin).unwrap();
 
         assert!(res.poll.is_none());
-
     }
 
     #[test]
@@ -475,7 +483,7 @@ mod tests {
         // query a vote that exists
         let msg = QueryMsg::Vote {
             poll_id: "some_id_1".to_string(),
-            address: ADDR1.to_string()
+            address: ADDR1.to_string(),
         };
         let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
         let res: VoteResponse = from_binary(&bin).unwrap();
@@ -491,7 +499,5 @@ mod tests {
         let res: VoteResponse = from_binary(&bin).unwrap();
 
         assert!(res.vote.is_none());
-
     }
-
 }
